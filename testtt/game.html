@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voxel Hero Adventure</title>
+    <style>
+        body { margin: 0; background: #222; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Courier New', Courier, monospace; }
+        canvas { background: #5c94fc; border: 6px solid #fff; box-shadow: 0 0 30px rgba(0,0,0,0.8); image-rendering: pixelated; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 800; canvas.height = 400;
+
+    // YOUR CHARACTER EMBEDDED DIRECTLY
+    const spriteSheet = new Image();
+    spriteSheet.src = 'https://r.jina.ai/i/5278d67c8701460592966847c945b412'; 
+
+    const player = {
+        x: 100, y: 200, width: 80, height: 80,
+        frameX: 0, 
+        speed: 1.2, friction: 0.85, gravity: 0.6, jumpPower: -14,
+        dx: 0, dy: 0, grounded: false,
+        isSpinning: false, spinTimer: 0,
+        direction: 1 // 1 for right, -1 for left
+    };
+
+    const keys = {};
+    window.addEventListener('keydown', e => {
+        keys[e.code] = true;
+        if (e.code === 'KeyX' && !player.isSpinning) { 
+            player.isSpinning = true;
+            player.spinTimer = 15; 
+        }
+    });
+    window.addEventListener('keyup', e => keys[e.code] = false);
+
+    function update() {
+        // Momentum & Input
+        if (keys['ArrowRight']) { 
+            player.dx += player.speed; 
+            player.direction = 1;
+            if (!player.isSpinning) player.frameX = Math.floor(Date.now() / 100) % 2 + 1; // Cycle walk frames
+        }
+        else if (keys['ArrowLeft']) { 
+            player.dx -= player.speed; 
+            player.direction = -1;
+            if (!player.isSpinning) player.frameX = Math.floor(Date.now() / 100) % 2 + 1;
+        } else {
+            if (!player.isSpinning) player.frameX = 0; // Idle
+        }
+
+        if (keys['Space'] && player.grounded) {
+            player.dy = player.jumpPower;
+            player.grounded = false;
+        }
+
+        if (player.isSpinning) {
+            player.frameX = 3; 
+            player.spinTimer--;
+            if (player.spinTimer <= 0) player.isSpinning = false;
+        }
+
+        if (!player.grounded && !player.isSpinning) player.frameX = 4;
+
+        player.dx *= player.friction;
+        player.dy += player.gravity;
+        player.x += player.dx;
+        player.y += player.dy;
+
+        // Wall collisions
+        if (player.x < 0) player.x = 0;
+        if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+
+        // Ground Floor
+        if (player.y + player.height > 350) {
+            player.y = 350 - player.height;
+            player.dy = 0;
+            player.grounded = true;
+        }
+
+        draw();
+        requestAnimationFrame(update);
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Ground - Simple Mario Style
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(0, 350, canvas.width, 50);
+        ctx.fillStyle = '#228b22';
+        ctx.fillRect(0, 350, canvas.width, 10);
+
+        // Draw Player
+        // We use a little trick to flip the character when moving left
+        ctx.save();
+        if (player.direction === -1) {
+            ctx.translate(player.x + player.width, player.y);
+            ctx.scale(-1, 1);
+            ctx.drawImage(spriteSheet, player.frameX * 200, 0, 200, 200, 0, 0, player.width, player.height);
+        } else {
+            ctx.drawImage(spriteSheet, player.frameX * 200, 0, 200, 200, player.x, player.y, player.width, player.height);
+        }
+        ctx.restore();
+
+        // UI
+        ctx.fillStyle = "white";
+        ctx.font = "20px Courier New";
+        ctx.fillText("ARROWS: MOVE | SPACE: JUMP | X: SPIN ATTACK", 20, 40);
+        if (player.isSpinning) {
+            ctx.fillStyle = "yellow";
+            ctx.fillText("SPINNING!", player.x, player.y - 10);
+        }
+    }
+
+    spriteSheet.onload = () => update();
+</script>
+</body>
+</html>
